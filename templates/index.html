@@ -1,155 +1,158 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Extrusion Calculator</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>Extrusion Calculator</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background-color: #000; color: #fff; text-align: center; }
-        h2 { font-size: 1.5em; margin-bottom: 15px; }
-        form { background: #000; padding: 15px; border-radius: 5px; box-shadow: 0 0 5px rgba(255,255,255,0.1); max-width: 300px; margin: 0 auto; color: #fff; }
-        label { display: block; font-size: 0.9em; margin: 10px 0 5px; text-align: left; }
-        input, select { width: 100%; padding: 6px; font-size: 0.9em; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background-color: #333; color: #fff; }
-        /* Hide spinner arrows for number inputs */
-        input[type="number"] {
-            -moz-appearance: textfield; /* Firefox */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
+        .form-group {
+            margin-bottom: 15px;
         }
-        input[type="number"] {
-            -moz-appearance: textfield;
+        label {
+            display: inline-block;
+            width: 120px;
         }
-        button { width: 30%; padding: 8px; margin: 5px 1%; font-size: 0.9em; border: none; border-radius: 4px; cursor: pointer; }
-        #calculateBtn { background-color: #28a745; color: #fff; }
-        #calculateBtn:hover { background-color: #218838; }
-        #clearBtn { background-color: #dc3545; color: #fff; }
-        #clearBtn:hover { background-color: #c82333; }
-        #undoBtn { background-color: #6c757d; color: #fff; }
-        #undoBtn:hover { background-color: #5a6268; }
-        #result { background: #000; padding: 10px; border-radius: 5px; box-shadow: 0 0 5px rgba(255,255,255,0.1); max-width: 300px; margin: 15px auto; color: #fff; }
-        #result p { margin: 8px 0; }
-        .speed-row { display: flex; justify-content: space-between; }
-        .speed-row span { margin: 0 5px; }
+        input, select {
+            width: 150px;
+            padding: 5px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+        }
+        .result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <h2>Extrusion Calculator</h2>
-    <form id="calcForm">
-        <label>Ratio:</label><input type="number" step="0.1" name="ratio" required><br>
-        <label>Runout (m):</label><input type="number" step="0.1" name="run_out"><br>
-        <label>Set Speed (m/min):</label><input type="number" step="0.1" name="setpoint"><br>
-        <label>Cavities:</label>
-        <select name="cavities">
-            <option value="1" selected>1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-        </select><br>
-        <br>
-        <button type="button" id="calculateBtn" onclick="calculate()">Calculate</button>
-        <button type="button" id="clearBtn" onclick="clearForm()">Clear</button>
-        <button type="button" id="undoBtn" onclick="undoForm()">Undo</button>
+    <h1>Extrusion Calculator</h1>
+    <form id="calculatorForm" action="/calculate" method="POST">
+        <div class="form-group">
+            <label for="ratio">Ratio:</label>
+            <input type="number" name="ratio" id="ratio" step="0.1" required>
+        </div>
+        <div class="form-group">
+            <label for="run_out">Runout (m):</label>
+            <input type="number" name="run_out" id="run_out" step="0.01">
+        </div>
+        <div class="form-group">
+            <label for="setpoint">Set Speed (m/min):</label>
+            <input type="number" name="setpoint" id="setpoint" step="0.01">
+        </div>
+        <div class="form-group">
+            <label for="cavities">Cavities:</label>
+            <select name="cavities" id="cavities">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit">Calculate</button>
+            <button type="button" onclick="clearForm()">Clear</button>
+            <button type="button" onclick="undoForm()">Undo</button>
+        </div>
     </form>
-    <div id="result">
+    <div class="result">
         <p>Profile Speed (%): <span id="profile_speed"></span></p>
         <p>Torque Ramp (.1s): <span id="torque_ramp"></span></p>
         <p>Puller Force: <span id="puller_force"></span> kgf</p>
         <p>Burp psi: <span id="burp_psi"></span></p>
     </div>
-    <div id="tips" style="display: none;"></div>
 
     <script>
-        let originalValues = {};
-        let lastCalculatedValues = {};
-        let lastInputValues = {};
+        // Store form state history for undo
+        let formStateHistory = JSON.parse(localStorage.getItem('formStateHistory')) || [];
 
-        function calculate() {
-            const ratio = $('input[name="ratio"]').val();
-            if (!ratio || ratio.trim() === '') {
-                alert('Extrusion ratio is required');
-                return;
-            }
-
-            lastInputValues = {
-                ratio: $('input[name="ratio"]').val(),
-                run_out: $('input[name="run_out"]').val(),
-                setpoint: $('input[name="setpoint"]').val(),
-                cavities: $('select[name="cavities"]').val()
-            };
-
-            console.log("Calculating with form data:", $('#calcForm').serialize());
-            $.post('/calculate', $('#calcForm').serialize(), function(data) {
-                console.log("Server response:", data);
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    lastCalculatedValues = {
-                        profile_speed: data.profile_speed || '0',
-                        torque_ramp: data.torque_ramp || '0',
-                        puller_force: data.puller_force || '0',
-                        burp_psi: data.burp_psi || '0'
-                    };
-
-                    originalValues = {
-                        profile_speed: lastCalculatedValues.profile_speed,
-                        torque_ramp: lastCalculatedValues.torque_ramp,
-                        puller_force: lastCalculatedValues.puller_force,
-                        burp_psi: lastCalculatedValues.burp_psi
-                    };
-                    $('#profile_speed').text(originalValues.profile_speed);
-                    $('#torque_ramp').text(originalValues.torque_ramp);
-                    $('#puller_force').text(originalValues.puller_force);
-                    $('#burp_psi').text(originalValues.burp_psi);
-                    $('#tips').hide().empty();
+        // Load saved values when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = ['ratio', 'run_out', 'setpoint', 'cavities'];
+            inputs.forEach(function(id) {
+                const input = document.getElementById(id);
+                if (input && localStorage.getItem(id)) {
+                    input.value = localStorage.getItem(id);
                 }
-            }).fail(function(xhr, status, error) {
-                console.log("AJAX Error:", status, error);
-                alert('Error communicating with server. Check console for details. Ensure app is running at ' + window.location.href);
+            });
+        });
+
+        // Save values to localStorage on input change
+        function saveFormData() {
+            const inputs = ['ratio', 'run_out', 'setpoint', 'cavities'];
+            inputs.forEach(function(id) {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.addEventListener('input', function() {
+                        localStorage.setItem(id, input.value);
+                    });
+                    if (input.tagName === 'SELECT') {
+                        input.addEventListener('change', function() {
+                            localStorage.setItem(id, input.value);
+                        });
+                    }
+                }
             });
         }
 
+        // Save form state before calculation
+        document.getElementById('calculatorForm').addEventListener('submit', function() {
+            const state = {
+                ratio: document.getElementById('ratio').value,
+                run_out: document.getElementById('run_out').value,
+                setpoint: document.getElementById('setpoint').value,
+                cavities: document.getElementById('cavities').value
+            };
+            formStateHistory.push(state);
+            localStorage.setItem('formStateHistory', JSON.stringify(formStateHistory));
+        });
+
+        // Clear form and localStorage
         function clearForm() {
-            $.post('/clear', function(data) {
-                $('input[name="ratio"]').val('');
-                $('input[name="run_out"]').val('');
-                $('input[name="setpoint"]').val('');
-                $('select[name="cavities"]').val('1');
-                originalValues = {};
-                $('#result span').text('0');
-                $('#tips').hide().empty();
-                lastInputValues = {};
+            const inputs = ['ratio', 'run_out', 'setpoint', 'cavities'];
+            inputs.forEach(function(id) {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.value = '';
+                    localStorage.removeItem(id);
+                }
             });
+            document.getElementById('profile_speed').textContent = '';
+            document.getElementById('torque_ramp').textContent = '';
+            document.getElementById('puller_force').textContent = '';
+            document.getElementById('burp_psi').textContent = '';
+            formStateHistory = [];
+            localStorage.setItem('formStateHistory', JSON.stringify(formStateHistory));
+            fetch('/clear', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log('Form cleared'));
         }
 
+        // Undo to previous form state
         function undoForm() {
-            if (Object.keys(lastInputValues).length > 0) {
-                $('input[name="ratio"]').val(lastInputValues.ratio || '');
-                $('input[name="run_out"]').val(lastInputValues.run_out || '');
-                $('input[name="setpoint"]').val(lastInputValues.setpoint || '');
-                $('select[name="cavities"]').val(lastInputValues.cavities || '1');
-
-                originalValues = {
-                    profile_speed: lastCalculatedValues.profile_speed || '0',
-                    torque_ramp: lastCalculatedValues.torque_ramp || '0',
-                    puller_force: lastCalculatedValues.puller_force || '0',
-                    burp_psi: lastCalculatedValues.burp_psi || '0'
-                };
-                $('#profile_speed').text(originalValues.profile_speed);
-                $('#torque_ramp').text(originalValues.torque_ramp);
-                $('#puller_force').text(originalValues.puller_force);
-                $('#burp_psi').text(originalValues.burp_psi);
-                calculate();
-            } else {
-                alert('No previous calculation to undo.');
+            if (formStateHistory.length > 0) {
+                const lastState = formStateHistory.pop();
+                const inputs = ['ratio', 'run_out', 'setpoint', 'cavities'];
+                inputs.forEach(function(id) {
+                    const input = document.getElementById(id);
+                    if (input && lastState[id]) {
+                        input.value = lastState[id];
+                        localStorage.setItem(id, lastState[id]);
+                    }
+                });
+                localStorage.setItem('formStateHistory', JSON.stringify(formStateHistory));
             }
         }
 
-        $(document).ready(function() {
-            $('input, select').off('input change');
-        });
+        // Initialize input listeners
+        saveFormData();
     </script>
 </body>
 </html>
