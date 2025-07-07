@@ -43,7 +43,8 @@ def calculate():
         burp_psi = 100.0 * ln_ratio + 10.0 * 78.54
         burp_pa = burp_psi * PSI_TO_PA
         extruded_area = BILLET_AREA_M2 / ratio
-        profile_speed_percent = min(set_speed / 0.13, MAX_SPEED / 0.13) if set_speed > 0 else 0
+        # New Profile Speed equation: (set_speed / 13 * 100) * 1.11, no decimal
+        profile_speed_percent = round((set_speed / 13 * 100) * 1.11) if set_speed > 0 else 0
 
         # Calculate ramp input (1-100) based on process factors
         initial_puller_force = 164.0  # Initial estimate to break circular reference
