@@ -10,6 +10,7 @@
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f4f4f4; /* Light gray background */
         }
         .form-group {
             margin-bottom: 15px;
@@ -17,18 +18,52 @@
         label {
             display: inline-block;
             width: 120px;
+            color: #333; /* Dark gray text */
         }
         input, select {
             width: 150px;
             padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff; /* White background */
+        }
+        input:focus, select:focus {
+            border-color: #007bff; /* Blue border on focus */
+            outline: none;
         }
         button {
             margin: 5px;
             padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #fff; /* White text */
+        }
+        button[type="submit"] {
+            background-color: #007bff; /* Blue for Calculate */
+        }
+        button[type="submit"]:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+        }
+        button[onclick="clearForm()"] {
+            background-color: #dc3545; /* Red for Clear */
+        }
+        button[onclick="clearForm()"]:hover {
+            background-color: #b02a37; /* Darker red on hover */
+        }
+        button[onclick="undoForm()"] {
+            background-color: #6c757d; /* Gray for Undo */
+        }
+        button[onclick="undoForm()"]:hover {
+            background-color: #5a6268; /* Darker gray on hover */
         }
         .result {
             margin-top: 20px;
             font-weight: bold;
+            color: #333; /* Dark gray text */
+        }
+        .result span {
+            color: #007bff; /* Blue for result values */
         }
     </style>
 </head>
